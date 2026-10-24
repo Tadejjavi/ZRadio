@@ -827,7 +827,7 @@ async function drawScreen(){
     const c=$(tab=='look'?'#scr2':'#scr').getContext('2d'),ag=$(tab=='look'?'#scrAge2':'#scrAge');
     if(r.status!=200){c.fillStyle='#000';c.fillRect(0,0,256,128);ag.textContent='Zaslon ni nastavljen ali ni dosegljiv';return}
     const b=new Uint8Array(await r.arrayBuffer()),age=+r.headers.get('X-Age'),fmt=r.headers.get('X-Fmt')||'mono-128x64';
-    ag.textContent='Zadnja sprememba slike: pred '+(age<1000?age+' ms':(age/1000).toFixed(1)+' s');
+    const pf=(r.headers.get('X-Perf')||'').split(';');ag.textContent='Zadnja sprememba slike: pred '+(age<1000?age+' ms':(age/1000).toFixed(1)+' s')+(pf.length==3?` · ${pf[0]} sl/s (izris ${pf[1]} ms, pošiljanje ${pf[2]} ms)`:'');
     if(fmt.startsWith('rgb332')){
       const im=c.createImageData(160,120);
       for(let i=0;i<b.length;i++){const v=b[i];im.data[i*4]=(v>>5)*36;im.data[i*4+1]=((v>>2)&7)*36;im.data[i*4+2]=(v&3)*85;im.data[i*4+3]=255}

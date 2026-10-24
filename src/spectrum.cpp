@@ -61,6 +61,10 @@ bool spectrumCompute(float* bands, int n, uint32_t rate) {
     }
     if (!rate) rate = 44100;
     const float fMin = 40.0f, fMax = min(16000.0f, rate / 2.0f - 100);
+    static uint32_t lastCall = 0;                        // izzvenevanje po času (0,82 na 40 ms), ne po številu slik
+    uint32_t now = millis();
+    float rel = powf(0.82f, constrain((now - lastCall) / 40.0f, 0.25f, 5.0f));
+    lastCall = now;
     const float norm = 32767.0f * N / 4;                 // polna skala sinusa z Hannovim oknom
     for (int b = 0; b < n; b++) {
         float target = 0;
@@ -73,7 +77,7 @@ bool spectrumCompute(float* bands, int n, uint32_t rate) {
             db += 3.0f * b / n * 4.0f;                                  // nagib: visoki toni so v glasbi šibkejši
             target = constrain((db + 63.0f) / 62.0f, 0.0f, 1.0f);       // -63 .. -1 dB -> 0 .. 1
         }
-        smooth[b] = target > smooth[b] ? target : smooth[b] * 0.82f + target * 0.18f;
+        smooth[b] = target > smooth[b] ? target : smooth[b] * rel + target * (1 - rel);
         bands[b] = smooth[b];
     }
     return fresh;

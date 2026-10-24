@@ -8,6 +8,11 @@ Delovni dnevnik razvoja: kaj je bilo narejeno, katere težave so se pojavile in 
   izbira se v panelu označi takoj, obvestilo pokaže čas odziva radia
 - Zaslon: pošiljanje slike po SPI teče brez aplikacijskega zaklepa (splet ni več blokiran med pošiljanjem)
 - Dnevnik: »Nastavitve shranjene (zaklep X ms, zapis Y ms)« za iskanje zakasnitev
+- Postavitve, vezane na zvok, so delovale počasi: Krožni spekter riše izseke s trikotniki namesto `fillArc`
+  (izris ~7x hitrejši), Gramofon ima ploščo v predpomnilniku in etiketo prek male slike z okroglo masko (~4,6x)
+- Izzvenevanje spektra, vrhov, VU in gibanje ročice so vezani na čas, ne na število slik (pri nižji hitrosti
+  osveževanja niso več »leni«)
+- Panel (Videz, Zaslon): izmerjena hitrost osveževanja in čas izrisa/pošiljanja pod predogledom
 
 **0.7.1**
 - Nov zavihek **Videz**: postavitve kot kartice s sličicami, teme kot barvni vzorci, klik takoj uveljavi;

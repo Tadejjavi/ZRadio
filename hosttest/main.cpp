@@ -27,7 +27,9 @@ bool spectrumCompute(float* b, int n, uint32_t) { for (int i = 0; i < n; i++) { 
 bool spectrumScope(int16_t* o, int n, int) { for (int i = 0; i < n; i++) o[i] = 8000 * sinf(i * 0.1f); return true; }
 LGFX_Sprite* hostSprite();
 void hostDraw(int layout, int theme, const char* toast);
+int benchMain(int, char**);
 int main(int argc, char** argv) {
+    if (argc > 1 && std::string(argv[1]) == "bench") { stations = {{"Radio Veseljak", "http://a", "narodna", true}, {"Val 202", "http://b", "pop"}}; PS.playing = true; PS.sampleRate = 44100; PS.title = "Avsenik - Na Golici"; PS.vu = (90<<8)|75; PS.bufferDs = 40; PS.url = "http://a"; for (int y = 0; y < 64; y++) for (int x = 0; x < 64; x++) logoBuf[y*64+x] = 0x1234; return benchMain(argc, argv); }
     // logo: modro-rdeč krog na belem s črko
     for (int y = 0; y < 64; y++) for (int x = 0; x < 64; x++) {
         int dx = x - 32, dy = y - 32; uint16_t c = lgfx::color565(250, 250, 250);

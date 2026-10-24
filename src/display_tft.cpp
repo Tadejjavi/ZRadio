@@ -186,6 +186,7 @@ static void drawSpeaker(int x, int y, bool muted, uint16_t col) {   // 16x14, le
 // ---------------------------------------------------------------------------
 // VU: segmentni merilnik z zadrževanjem vrha
 // ---------------------------------------------------------------------------
+static float   fk = 1.0f;                 // trajanje zadnje slike / 40 ms
 static float   vuL = 0, vuR = 0;
 static uint8_t pkL = 0, pkR = 0;
 static uint32_t pkLt = 0, pkRt = 0;
@@ -214,7 +215,7 @@ static void drawSpectrum(int x0, int y0, int w, int h, const PlayerStatus& ps, i
     const int step = w / SPN, bw = step - 2, segG = 1, nseg = h / (segH + segG);
     for (int b = 0; b < SPN; b++) {
         float v = ps.playing ? spB[b] : 0;
-        if (v >= spPk[b]) spPk[b] = v; else spPk[b] = max(0.0f, spPk[b] - 0.012f);
+        if (v >= spPk[b]) spPk[b] = v; else spPk[b] = max(0.0f, spPk[b] - 0.012f * fk);
         int lit = (int)(v * nseg + 0.5f), pk = (int)(spPk[b] * nseg + 0.5f);
         int x = x0 + b * step;
         for (int s = 0; s < nseg; s++) {
@@ -383,8 +384,9 @@ static void drawVuBars(int x, int y, int w, int h, const PlayerStatus& ps, bool 
     float tl = 0, tr = 0;
     auto curve = [](uint8_t v) { float f = min(1.0f, v / 127.0f); return f * f * (1.6f - 0.6f * f); };
     if (ps.playing) { tl = curve(ps.vu >> 8); tr = curve(ps.vu & 0xFF); }
-    vuL = tl > vuL ? tl : vuL * 0.8f + tl * 0.2f;
-    vuR = tr > vuR ? tr : vuR * 0.8f + tr * 0.2f;
+    float a = powf(0.8f, fk);
+    vuL = tl > vuL ? tl : vuL * a + tl * (1 - a);
+    vuR = tr > vuR ? tr : vuR * a + tr * (1 - a);
     int lw = labels ? 16 : 0, bh = (h - 6) / 2;
     if (labels) {
         spr->setFont(&F_FOOT); spr->setTextColor(C_DIM);
@@ -818,6 +820,7 @@ static void layoutRings(const PlayerStatus& ps, const char* toast) {
 // ---------------------------------------------------------------------------
 // Skupno novim postavitvam
 // ---------------------------------------------------------------------------
+static bool ensureBg();
 static inline uint16_t c565(int r, int g, int b) { return lgfx::color565(r, g, b); }
 
 // obarvaj pravokotnik proti barvi (k = 0..256), po želji z zaobljenimi vogali – "steklo"
@@ -856,8 +859,9 @@ static void vuTrack(const PlayerStatus& ps) {
     float tl = 0, tr = 0;
     auto curve = [](uint8_t v) { float f = min(1.0f, v / 127.0f); return f * f * (1.6f - 0.6f * f); };
     if (ps.playing) { tl = curve(ps.vu >> 8); tr = curve(ps.vu & 0xFF); }
-    vuL = tl > vuL ? tl : vuL * 0.8f + tl * 0.2f;
-    vuR = tr > vuR ? tr : vuR * 0.8f + tr * 0.2f;
+    float a = powf(0.8f, fk);
+    vuL = tl > vuL ? tl : vuL * a + tl * (1 - a);
+    vuR = tr > vuR ? tr : vuR * a + tr * (1 - a);
 }
 
 static uint32_t frameDt() {                    // ms od prejšnje slike (za vrtenje)
@@ -886,18 +890,38 @@ static float vinAng = 0, armAng = 4;
 static void layoutVinyl(const PlayerStatus& ps, const char* toast) {
     const Station* s = curStation();
     uint32_t dt = frameDt();
-    spr->fillScreen(C_BG);
     const int cx = 96, cy = 108, R = 90, L = 34;
     float target = ps.playing ? -17.0f : 4.0f;          // ročica na plošči / na stojalu
-    armAng += (target - armAng) * 0.12f;
+    armAng += (target - armAng) * min(1.0f, 0.12f * fk);
     if (ps.playing && armAng < -14.0f) vinAng = fmodf(vinAng + dt * 0.2f, 360.0f);   // 33 1/3 obr/min
 
-    spr->fillCircle(cx, cy, R + 6, c565(64, 64, 70));
-    spr->drawCircle(cx, cy, R + 6, c565(110, 110, 118));
+    static int vinTheme = -1;
+    if (!bgSpr || bgBuilt != 103 || vinTheme != curTheme) {      // plošča brez etikete: enkrat
+        spr->fillScreen(C_BG);
+        spr->fillCircle(cx, cy, R + 6, c565(64, 64, 70));
+        spr->drawCircle(cx, cy, R + 6, c565(110, 110, 118));
+        spr->fillCircle(cx, cy, R, c565(26, 26, 30));
+        spr->fillArc(cx, cy, L + 8, R - 3, -62, -34, c565(52, 52, 58));      // odsev luči
+        spr->fillArc(cx, cy, L + 8, R - 3, 118, 146, c565(44, 44, 50));
+        for (int r = L + 6; r < R - 2; r += 3) spr->drawCircle(cx, cy, r, c565(14, 14, 16));
+        spr->drawCircle(cx, cy, R - 1, c565(60, 60, 66));
+        spr->fillCircle(206, 150, 5, c565(50, 50, 56));                     // stojalo ročice
+        if (ensureBg()) { memcpy(bgSpr->getBuffer(), spr->getBuffer(), W * H * 2); bgBuilt = 103; vinTheme = curTheme; }
+    } else memcpy(spr->getBuffer(), bgSpr->getBuffer(), W * H * 2);
+
     const uint16_t* lg = s ? logoGet(s->url) : nullptr;
-    if (lg) {
+    static LGFX_Sprite* lab = nullptr;
+    if (lg && !lab) { lab = new LGFX_Sprite(); lab->setColorDepth(16); lab->setPsram(true); if (!lab->createSprite(2 * L + 1, 2 * L + 1)) { delete lab; lab = nullptr; } }
+    if (lg && lab) {                                    // zasukan logotip v mali sliki, nato le pike znotraj kroga
         float z = 2.0f * L / LOGO_W + 0.02f;
-        spr->pushImageRotateZoom(cx, cy, LOGO_W / 2.0f, LOGO_W / 2.0f, vinAng, z, z, LOGO_W, LOGO_W, (const lgfx::swap565_t*)lg);
+        lab->pushImageRotateZoom(L, L, LOGO_W / 2.0f, LOGO_W / 2.0f, vinAng, z, z, LOGO_W, LOGO_W, (const lgfx::swap565_t*)lg);
+        const uint16_t* sb = (const uint16_t*)lab->getBuffer();
+        uint16_t* db = (uint16_t*)spr->getBuffer();
+        const int D = 2 * L + 1;
+        for (int y = 0; y < D; y++) {
+            int dy = y - L, hw = (int)sqrtf((float)(L * L - dy * dy));
+            memcpy(&db[(cy + dy) * W + cx - hw], &sb[y * D + L - hw], (2 * hw + 1) * 2);
+        }
     } else {
         spr->fillCircle(cx, cy, L, C_ACC);
         String ini = s ? s->name : String("?");
@@ -908,12 +932,6 @@ static void layoutVinyl(const PlayerStatus& ps, const char* toast) {
         float a = vinAng * DEG_TO_RAD;
         spr->fillCircle(cx + (L - 7) * cosf(a), cy + (L - 7) * sinf(a), 3, C_ONACC);
     }
-    // vinil (prekrije tudi vogale zasukane slike)
-    spr->fillArc(cx, cy, L, R, 0, 360, c565(26, 26, 30));
-    spr->fillArc(cx, cy, L + 8, R - 3, -62, -34, c565(52, 52, 58));      // odsev luči
-    spr->fillArc(cx, cy, L + 8, R - 3, 118, 146, c565(44, 44, 50));
-    for (int r = L + 6; r < R - 2; r += 3) spr->drawCircle(cx, cy, r, c565(14, 14, 16));
-    spr->drawCircle(cx, cy, R - 1, c565(60, 60, 66));
     spr->drawCircle(cx, cy, L, c565(12, 12, 12));
     spr->fillCircle(cx, cy, 3, c565(215, 215, 215));
 
@@ -1201,19 +1219,33 @@ static void layoutRadial(const PlayerStatus& ps, const char* toast) {
     }
     spr->drawCircle(cx, cy, lr + 1, C_ACC);
     const int r0 = 50, maxLen = 44;
+    static float ca[2][NB][2], sa[2][NB][2];            // [stran][pas][rob] kosinusi in sinusi robov izsekov
+    static bool trig = false;
+    if (!trig) {
+        for (int i = 0; i < NB; i++)
+            for (int side = 0; side < 2; side++) {
+                float a0 = side ? -90 + i * da + da * 0.32f : -90 - (i + 1) * da, a1 = side ? -90 + (i + 1) * da : -90 - i * da - da * 0.32f;
+                ca[side][i][0] = cosf(a0 * DEG_TO_RAD); sa[side][i][0] = sinf(a0 * DEG_TO_RAD);
+                ca[side][i][1] = cosf(a1 * DEG_TO_RAD); sa[side][i][1] = sinf(a1 * DEG_TO_RAD);
+            }
+        trig = true;
+    }
+    auto quad = [&](int side, int i, float ri, float ro, uint16_t col) {
+        float c0 = ca[side][i][0], s0 = sa[side][i][0], c1 = ca[side][i][1], s1 = sa[side][i][1];
+        int x0 = cx + ri * c0, y0 = cy + ri * s0, x1 = cx + ri * c1, y1 = cy + ri * s1;
+        int x2 = cx + ro * c1, y2 = cy + ro * s1, x3 = cx + ro * c0, y3 = cy + ro * s0;
+        spr->fillTriangle(x0, y0, x1, y1, x2, y2, col);
+        spr->fillTriangle(x0, y0, x2, y2, x3, y3, col);
+    };
     for (int i = 0; i < NB; i++) {
         float v = ps.playing ? spB[i] : 0;
-        if (v >= spPk[i]) spPk[i] = v; else spPk[i] = max(0.0f, spPk[i] - 0.012f);
+        if (v >= spPk[i]) spPk[i] = v; else spPk[i] = max(0.0f, spPk[i] - 0.012f * fk);
         float t = (float)i / (NB - 1);
         uint16_t col = c565(T_LO.r + (T_HI.r - T_LO.r) * t, T_LO.g + (T_HI.g - T_LO.g) * t, T_LO.b + (T_HI.b - T_LO.b) * t);
         int len = 2 + (int)(v * maxLen), pk = r0 + 2 + (int)(spPk[i] * maxLen);
-        const float gap = da * 0.32f;
         for (int side = 0; side < 2; side++) {
-            float a0 = side ? -90 + i * da + gap : 270 - (i + 1) * da, a1 = side ? -90 + (i + 1) * da : 270 - i * da - gap;
-            if (a0 < 0) { a0 += 360; a1 += 360; }               // 40 pasov × 4,5° -> nikoli čez 0°
-            if (a1 > 360.01f) { a0 -= 360; a1 -= 360; }
-            spr->fillArc(cx, cy, r0, r0 + len, a0, a1, col);
-            if (pk > r0 + len + 1) spr->fillArc(cx, cy, pk, pk + 2, a0, a1, C_TXT);
+            quad(side, i, r0, r0 + len, col);
+            if (pk > r0 + len + 1) quad(side, i, pk, pk + 2, C_TXT);
         }
     }
     // vogali
@@ -1514,6 +1546,9 @@ void tftApplyConfig() {
     curBright = 0;          // ponovno nastavi ob izrisu
 }
 
+static float statFrame = 40, statDraw = 0, statPush = 0;
+void tftStats(float& fps, float& drawMs, float& pushMs) { fps = statFrame > 0 ? 1000.0f / statFrame : 0; drawMs = statDraw; pushMs = statPush; }
+
 void tftUpdate(bool force, const char* toast) {
     if (!tftActive()) return;
     uint32_t now = millis();
@@ -1535,6 +1570,8 @@ void tftUpdate(bool force, const char* toast) {
     else if (ui.screen == SCR_SAVER) interval = 1000;
     else if (ui.screen != SCR_MAIN && ui.screen != SCR_BROWSE && ui.screen != SCR_VOLUME && ui.screen != SCR_MENU) interval = 250;
     if (!force && now - lastDraw < interval) return;
+    fk = lastDraw ? constrain((now - lastDraw) / 40.0f, 0.25f, 5.0f) : 1.0f;
+    if (lastDraw && now - lastDraw < 1000) statFrame = statFrame * 0.9f + (now - lastDraw) * 0.1f;
     lastDraw = now;
 
     // svetlost osvetlitve: "kontrast" iz nastavitev = svetlost (0..255)
@@ -1548,6 +1585,7 @@ void tftUpdate(bool force, const char* toast) {
     }
     if (dark) { dark = false; force = true; }
 
+    uint32_t t0 = micros();
     spectrumEnable((cfg.viz == "spectrum" || cfg.viz == "scope" || cfg.viz == "mirror" || cfg.layout == 5 || cfg.layout == 6 || cfg.layout == 8 || cfg.layout >= 10) && ui.screen == SCR_MAIN);
     PlayerStatus ps = playerStatus();
     switch (ui.screen) {
@@ -1559,9 +1597,13 @@ void tftUpdate(bool force, const char* toast) {
         case SCR_SAVER:   drawSaver(); break;
         default:          drawInfo(); break;
     }
+    uint32_t t1 = micros();
     appUnlock();               // pošiljanje po SPI ne potrebuje stanja -> splet medtem ni blokiran
     push(force);
     appLock();
+    uint32_t t2 = micros();
+    statDraw = statDraw * 0.9f + (t1 - t0) * 0.0001f;   // ms, drseče povprečje
+    statPush = statPush * 0.9f + (t2 - t1) * 0.0001f;
 }
 
 size_t tftSnapshot(uint8_t* out, size_t max, uint32_t& ageMs) {

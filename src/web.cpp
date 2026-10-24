@@ -282,6 +282,7 @@ void webBegin(bool apMode) {
         AsyncWebServerResponse* res = r->beginResponse(200, "application/octet-stream", snap, n);
         res->addHeader("X-Age", String(age));
         res->addHeader("X-Fmt", fmt);
+        if (tftActive()) { float f, d, p; tftStats(f, d, p); char b[48]; snprintf(b, sizeof(b), "%.1f;%.1f;%.1f", f, d, p); res->addHeader("X-Perf", b); }
         res->addHeader("Cache-Control", "no-store");
         r->send(res);
     });

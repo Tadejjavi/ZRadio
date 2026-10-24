@@ -22,4 +22,4 @@ mkdir -p obj
 for f in $(find $L/lgfx -name "*.cpp" | grep -v "/platforms/"); do o=obj/$(echo $f | md5sum | cut -c1-8).o; [ -f $o ] || g++ $FL -c $f -o $o; done
 for f in $(find $L/lgfx -name "*.c"); do o=obj/c_$(echo $f | md5sum | cut -c1-8).o; [ -f $o ] || gcc -O1 -w -I$L -c $f -o $o; done
 [ -f obj/u8fonts.o ] || gcc -O1 -c $U/u8g2_fonts.c -o obj/u8fonts.o
-g++ $FL -c dt.cpp -o obj_dt.o && g++ $FL main.cpp obj_dt.o obj/*.o -o host -lpthread
+g++ $FL -c dt.cpp -o obj_dt.o && g++ $FL main.cpp bench.cpp obj_dt.o obj/*.o -o host -lpthread

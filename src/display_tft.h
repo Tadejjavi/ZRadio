@@ -12,3 +12,4 @@ size_t tftSnapshot(uint8_t* out, size_t max, uint32_t& ageMs);
 const char* tftThemeName(int i);
 int    tftThemeCount();
 void   tftBgChanged();              // naložena nova slika ozadja (/bg.565)
+void   tftStats(float& fps, float& drawMs, float& pushMs);   // izmerjena hitrost osveževanja (drseče povprečje)
