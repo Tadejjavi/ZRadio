@@ -1559,7 +1559,9 @@ void tftUpdate(bool force, const char* toast) {
         case SCR_SAVER:   drawSaver(); break;
         default:          drawInfo(); break;
     }
+    appUnlock();               // pošiljanje po SPI ne potrebuje stanja -> splet medtem ni blokiran
     push(force);
+    appLock();
 }
 
 size_t tftSnapshot(uint8_t* out, size_t max, uint32_t& ageMs) {

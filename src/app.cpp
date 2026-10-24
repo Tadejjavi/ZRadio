@@ -35,8 +35,8 @@ bool appTimeValid() { return time(nullptr) > 1700000000; }
 void appSetInfo(Screen s, const String& a, const String& b, const String& c) {
     appLock();
     ui.screen = s; ui.info1 = a; ui.info2 = b; ui.info3 = c;
+    displayUpdate(true);       // izris vedno pod zaklepom (tftUpdate ga sprosti le za pošiljanje)
     appUnlock();
-    displayUpdate(true);
 }
 
 // ---------------------------------------------------------------------------

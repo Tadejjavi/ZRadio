@@ -138,12 +138,16 @@ static void handleConfig(AsyncWebServerRequest* r, JsonVariant& json, bool save)
     JsonArray e = d["errors"].to<JsonArray>();   for (auto& s : err)  e.add(s);
     JsonArray w = d["warnings"].to<JsonArray>(); for (auto& s : warn) w.add(s);
     if (ok && save) {
+        uint32_t t0 = millis();
         appLock();
+        uint32_t t1 = millis();
         bool reboot = needsReboot(cfg, tmp);
         cfg = tmp;
         bool saved = saveConfig(cfg);
-        diagEvent("Nastavitve shranjene%s", reboot ? " (potreben ponovni zagon)" : "");
+        uint32_t t2 = millis();
         appUnlock();
+        diagEvent("Nastavitve shranjene%s (zaklep %lu ms, zapis %lu ms)", reboot ? " (potreben ponovni zagon)" : "",
+                  (unsigned long)(t1 - t0), (unsigned long)(t2 - t1));
         d["reboot"] = reboot;
         d["saved"] = saved;
         if (!saved) d["ok"] = false, e.add("Shranjevanje na LittleFS ni uspelo");

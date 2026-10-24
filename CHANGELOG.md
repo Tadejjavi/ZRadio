@@ -2,6 +2,13 @@
 
 Delovni dnevnik razvoja: kaj je bilo narejeno, katere težave so se pojavile in kako so bile rešene.
 
+**0.7.2**
+- Panel: zamenjava teme/postavitve je trajala ~10 s (tudi na zaslonu). Popravki: predogled in stanje se ne pošiljata
+  več, dokler prejšnja zahteva ni odgovorjena (prej se je lahko nabrala vrsta), med shranjevanjem premor;
+  izbira se v panelu označi takoj, obvestilo pokaže čas odziva radia
+- Zaslon: pošiljanje slike po SPI teče brez aplikacijskega zaklepa (splet ni več blokiran med pošiljanjem)
+- Dnevnik: »Nastavitve shranjene (zaklep X ms, zapis Y ms)« za iskanje zakasnitev
+
 **0.7.1**
 - Nov zavihek **Videz**: postavitve kot kartice s sličicami, teme kot barvni vzorci, klik takoj uveljavi;
   možnosti posamezne postavitve (prikaz zvoka, ozadje, levi obroč) se pokažejo le, ko veljajo

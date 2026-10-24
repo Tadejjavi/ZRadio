@@ -419,8 +419,10 @@ async function cmd(q){try{await api('/api/cmd?'+q,{method:'POST'});setTimeout(po
 let volT; $('#pVol').oninput=e=>{$('#pVolN').textContent=e.target.value;clearTimeout(volT);volT=setTimeout(()=>cmd('vol='+e.target.value),120)};
 let volBusy=0; $('#pVol').onpointerdown=()=>volBusy=1; $('#pVol').onpointerup=()=>setTimeout(()=>volBusy=0,600);
 
+let pollBusy=0,saving=0;
 async function poll(){
-  try{S=await api('/api/status')}catch(e){$('#hDot').classList.remove('on');return}
+  if(pollBusy||saving)return;pollBusy=1;
+  try{S=await api('/api/status')}catch(e){$('#hDot').classList.remove('on');return}finally{pollBusy=0}
   $('#hDot').classList.add('on');
   $('#hRssi').textContent=(S.time?S.time+' · ':'')+S.rssi+' dBm';
   $('#pName').textContent=S.standby?'V pripravljenosti':(S.name||'—');
@@ -808,9 +810,18 @@ function renderLook(){
     <label class="f">Lastna slika ozadja<button class="b" type="button" onclick="bgPick()">Naloži sliko …</button></label></div>`;
   $('#layOpts').style.display=o?'':'none';$('#layOpts').innerHTML=o?`<h3 style="margin:0 0 10px">Možnosti postavitve ${LAYS[L][0]}</h3>`+o:'';
 }
-async function lookSave(o,msg){await saveCfg({display:o},msg);renderLook();setTimeout(drawScreen,400)}
+async function lookSave(o,msg){
+  Object.assign(C.display,o);renderLook();                 // izbira se označi takoj
+  saving=1;const t=performance.now();
+  try{const r=await post('/api/config',{display:o});
+    if(!r.ok)toast((r.errors||[r.error]).join(', '),1);else toast(msg+' ('+Math.round(performance.now()-t)+' ms)');
+  }catch(e){toast(e.message,1)}finally{saving=0}
+  setTimeout(drawScreen,150);
+}
 async function vin(e,ev){try{await fetch(`/api/input?enc=${e}&ev=${ev}`,{method:'POST'});setTimeout(drawScreen,120)}catch(x){}}
+let scrBusy=0;
 async function drawScreen(){
+  if(scrBusy||saving)return;scrBusy=1;
   try{
     const r=await fetch('/api/screen',{cache:'no-store'});
     const c=$(tab=='look'?'#scr2':'#scr').getContext('2d'),ag=$(tab=='look'?'#scrAge2':'#scrAge');
@@ -828,7 +839,7 @@ async function drawScreen(){
     for(let i=3;i<img.data.length;i+=4)if(!img.data[i]){img.data[i]=255}
     const t=document.createElement('canvas');t.width=128;t.height=64;t.getContext('2d').putImageData(img,0,0);
     c.imageSmoothingEnabled=false;c.drawImage(t,0,0,256,128);
-  }catch(e){}
+  }catch(e){}finally{scrBusy=0}
 }
 setInterval(()=>{if((tab=='disp'||tab=='look')&&!document.hidden)drawScreen()},700);
 async function diagClear(){if(!confirm('Počistim zgodovino zagonov, kontrolne točke in dnevnik?'))return;await api('/api/diag/clear',{method:'POST'});loadDiag();toast('Počiščeno')}
