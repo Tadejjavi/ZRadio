@@ -1,0 +1,8 @@
+{
+  "name": "ZRadio",
+  "version": "__VERSION__",
+  "new_install_prompt_erase": true,
+  "builds": [
+    { "chipFamily": "ESP32-S3", "parts": [ { "path": "zradio-full.bin", "offset": 0 } ] }
+  ]
+}

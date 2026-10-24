@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="sl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZRadio – namestitev</title>
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<style>body{background:#14161b;color:#e7e9ee;font:16px/1.5 system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 16px}
+h1 b{color:#f2a33a}.c{background:#1c1f26;border:1px solid #2e333f;border-radius:10px;padding:16px;margin:16px 0}
+code{background:#232731;padding:2px 6px;border-radius:4px}a{color:#f2a33a}</style></head>
+<body>
+<h1>Z<b>Radio</b> – namestitev</h1>
+<div class="c">
+<p>Priključi <b>ESP32-S3 N16R8</b> s kablom USB (priključek <b>UART</b>) in klikni:</p>
+<esp-web-install-button manifest="manifest.json"></esp-web-install-button>
+<p style="font-size:14px;color:#8d94a3">Deluje v Chrome ali Edge na računalniku. Če se namestitev ne začne: drži BOOT, pritisni RST, spusti BOOT.</p>
+</div>
+<div class="c">
+<b>Po namestitvi</b>
+<ol><li>Poveži se na WiFi <code>ZRadio-xxxx</code>, geslo <code>zradio1234</code>.</li>
+<li>Odpri <code>http://192.168.4.1</code> → zavihek <i>Omrežje</i> → vpiši domači WiFi → Shrani → Zaženi znova.</li>
+<li>Radio je nato dosegljiv na <code>http://zradio.local</code>.</li></ol>
+</div>
+</body></html>

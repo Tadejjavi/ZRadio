@@ -1,0 +1,48 @@
+name: build
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('platformio.ini') }}
+      - run: pip install platformio esptool
+      - run: pio run
+      - name: Merged binary + installer
+        run: |
+          B=$(find ~/.platformio/packages/framework-arduinoespressif32* -name boot_app0.bin | head -1)
+          python -m esptool --chip esp32s3 merge-bin -o docs/zradio-full.bin \
+            --flash-mode keep --flash-freq keep --flash-size 16MB 0x0 .pio/build/esp32s3/bootloader.bin \
+            0x8000 .pio/build/esp32s3/partitions.bin 0xe000 $B 0x10000 .pio/build/esp32s3/firmware.bin
+          cp .pio/build/esp32s3/firmware.bin docs/zradio-ota.bin
+          cp .pio/build/esp32s3/firmware.elf zradio.elf
+          sed -i "s/__VERSION__/${GITHUB_REF_NAME}/" docs/manifest.json
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            docs/zradio-full.bin
+            docs/zradio-ota.bin
+            zradio.elf
+          generate_release_notes: true
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: docs }
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: { name: github-pages }
+    steps:
+      - uses: actions/deploy-pages@v4

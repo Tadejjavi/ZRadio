@@ -1,0 +1,17 @@
+# PlatformIO
+.pio/
+.vscode/
+# zgrajene datoteke (gredo v GitHub Release, ne v repozitorij)
+dist/
+*.elf
+# dokumentacija vgrajene knjižnice (ni potrebna za prevajanje)
+lib/ESP32-audioI2S/additional_info/
+# preizkus postavitev na računalniku – zgrajeno
+hosttest/obj/
+hosttest/obj_dt.o
+hosttest/host
+hosttest/dt.cpp
+hosttest/*.h
+hosttest/*.ppm
+hosttest/*.png
+hosttest/thumbs.json
