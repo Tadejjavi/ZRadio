@@ -1,5 +1,8 @@
 # ZRadio
 
+> **V razvoju.** Zvočni izhod (PCM5102 + PAM8403) še ni preizkušen na napravi; zaslon, WiFi, predvajanje toka
+> in spletni panel delujejo. Uporaba na lastno odgovornost.
+
 Internetni radio na **ESP32-S3 N16R8** z barvnim zaslonom **ILI9341 2,4"**, DAC-om **PCM5102** in ojačevalnikom **PAM8403**.
 Lastna programska oprema (PlatformIO, Arduino core 3), upravljanje z enkoderjema in spletni panel v slovenščini.
 Pini, zaslon in vhodi se nastavljajo v panelu – brez ponovnega prevajanja.
