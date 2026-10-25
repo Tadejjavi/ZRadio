@@ -2,6 +2,12 @@
 
 Delovni dnevnik razvoja: kaj je bilo narejeno, katere težave so se pojavile in kako so bile rešene.
 
+**0.7.3**
+- IR daljinec je deloval nezanesljivo (večkrat pritisniti). Dekoder NEC je prestavljen s prekinitve na padajoče robove
+  na enoto RMT: strojno merjenje impulzov (1 µs), filter motenj < 3 µs, širše tolerance, lastno opravilo.
+  Prej je en sam zgrešen ali moten rob zavrgel cel ukaz in vse njegove ponovitve.
+- Upravljanje: ob zadnji kodi števec prejetih in zavrženih okvirjev (motnje / drug protokol)
+
 **0.7.2**
 - Panel: zamenjava teme/postavitve je trajala ~10 s (tudi na zaslonu). Popravki: predogled in stanje se ne pošiljata
   več, dokler prejšnja zahteva ni odgovorjena (prej se je lahko nabrala vrsta), med shranjevanjem premor;

@@ -1,4 +1,6 @@
 #include "input.h"
+#include "diag.h"
+#include <esp32-hal-rmt.h>
 #include <soc/gpio_reg.h>
 #include <esp_timer.h>
 
@@ -51,44 +53,56 @@ static void encSetup(Enc& e, const EncCfg& c) {
 }
 
 // ---------------------------------------------------------------------------
-// IR – NEC dekoder na padajočih robovih (VS1838B: mirovanje = HIGH)
+// IR – NEC prek enote RMT: strojno zajemanje trajanja impulzov (1 µs), filter motenj,
+// neodvisno od zakasnitev prekinitev (WiFi, zaslon). Sprejemnik VS1838B: mirovanje = HIGH.
 // ---------------------------------------------------------------------------
 static int8_t irPin = -1;
-static volatile int64_t  irLastEdge = 0;
-static volatile uint32_t irData = 0;
-static volatile uint8_t  irBits = 0;
-static volatile bool     irCollect = false;
 static volatile uint32_t irCode = 0;        // zadnja dekodirana koda
 static volatile uint32_t irCodeSeq = 0;     // nova koda
 static volatile uint32_t irRptSeq = 0;      // ponovitveni okvir
-static volatile int64_t  irLastFrame = 0;
+static volatile uint32_t irBad = 0;         // okvirji, ki niso NEC (motnje, drug protokol)
+static uint32_t irLastFrame = 0;
 
-static void IRAM_ATTR irIsr() {
-    int64_t now = esp_timer_get_time();
-    uint32_t dt = (uint32_t)(now - irLastEdge);
-    irLastEdge = now;
-    if (dt > 12500 && dt < 14500) {            // vodilni impulz 9 ms + 4,5 ms
-        irCollect = true; irBits = 0; irData = 0;
+static inline bool in(uint32_t v, uint32_t lo, uint32_t hi) { return v >= lo && v <= hi; }
+
+static void irDecode(const rmt_data_t* d, size_t n) {
+    if (n < 2) return;
+    uint32_t m0 = d[0].duration0, s0 = d[0].duration1;
+    if (d[0].level0 != 0 || !in(m0, 7000, 11000)) { irBad = irBad + 1; return; }
+    uint32_t now = millis();
+    if (in(s0, 1700, 2900)) {                                  // ponovitev: 9 ms + 2,25 ms
+        if (now - irLastFrame < 250) { irLastFrame = now; irRptSeq = irRptSeq + 1; }
         return;
     }
-    if (dt > 10500 && dt < 12300) {            // ponovitev 9 ms + 2,25 ms
-        irCollect = false;
-        if (now - irLastFrame < 200000) { irLastFrame = now; irRptSeq = irRptSeq + 1; }
-        return;
+    if (!in(s0, 3400, 5600) || n < 33) { irBad = irBad + 1; return; }   // vodilni: 9 ms + 4,5 ms
+    uint32_t data = 0;
+    for (int i = 0; i < 32; i++) {
+        uint32_t m = d[i + 1].duration0, sp = d[i + 1].duration1;
+        if (!in(m, 250, 1000) || !in(sp, 250, 2400)) { irBad = irBad + 1; return; }
+        if (sp > 1100) data |= 1UL << i;                         // 0: ~560 µs, 1: ~1690 µs
     }
-    if (!irCollect) return;
-    if (dt > 900 && dt < 1450)       { /* bit 0 */ }
-    else if (dt > 1900 && dt < 2600) { irData |= (1UL << irBits); }
-    else { irCollect = false; return; }
-    irBits = irBits + 1;
-    if (irBits >= 32) {
-        irCollect = false;
-        irCode = irData; irCodeSeq = irCodeSeq + 1; irLastFrame = now;
+    irCode = data; irCodeSeq = irCodeSeq + 1; irLastFrame = now;
+}
+
+static void irTask(void*) {
+    static rmt_data_t buf[96];
+    for (;;) {
+        size_t n = 96;
+        if (rmtRead(irPin, buf, &n, RMT_WAIT_FOR_EVER)) irDecode(buf, n);
+        else vTaskDelay(pdMS_TO_TICKS(20));
     }
+}
+
+static bool irBeginRmt(int pin) {
+    if (!rmtInit(pin, RMT_RX_MODE, RMT_MEM_NUM_BLOCKS_2, 1000000)) return false;   // 1 tik = 1 µs
+    rmtSetRxMinThreshold(pin, 3);         // zavrzi motnje < 3 µs
+    rmtSetRxMaxThreshold(pin, 12000);     // 12 ms brez roba = konec okvirja (največji presledek v NEC je 4,5 ms)
+    return xTaskCreatePinnedToCore(irTask, "ir", 3072, nullptr, 2, nullptr, 1) == pdPASS;
 }
 
 uint32_t irLastCode() { return irCode; }
 uint32_t irSeq()      { return irCodeSeq; }
+uint32_t irBadCount() { return irBad; }
 
 // ---------------------------------------------------------------------------
 // Navadne tipke (na GND, notranji pull-up)
@@ -118,7 +132,7 @@ void inputBegin(const Config& c) {
     if (c.ir >= 0) {
         irPin = c.ir;
         pinMode(irPin, INPUT_PULLUP);
-        attachInterrupt(irPin, irIsr, FALLING);
+        if (!irBeginRmt(irPin)) { diagEvent("IR: enota RMT ni na voljo (GPIO %d)", irPin); irPin = -1; }
     }
 }
 

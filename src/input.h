@@ -22,4 +22,5 @@ struct InputEvent {
 void inputBegin(const Config& c);
 bool inputPoll(InputEvent& e);          // kliči v loop(); vrne true, ko je dogodek
 uint32_t irLastCode();                  // zadnja prejeta koda (tudi neznana) – za učenje
-uint32_t irSeq();                       // števec prejetih kod
+uint32_t irSeq();
+uint32_t irBadCount();                  // zavrženi okvirji (ni NEC / motnje)                       // števec prejetih kod

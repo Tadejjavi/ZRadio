@@ -66,7 +66,7 @@ static void apiStatus(AsyncWebServerRequest* r) {
     d["rec"] = ps.reconnects; d["err"] = ps.lastError;
     d["vu"] = ps.vu;
     d["rssi"] = WiFi.RSSI();
-    d["ir_seq"] = irSeq();
+    d["ir_seq"] = irSeq(); d["ir_bad"] = irBadCount();
     char hex[11]; snprintf(hex, sizeof(hex), "0x%08lX", (unsigned long)irLastCode());
     d["ir"] = hex;
     if (appTimeValid()) {

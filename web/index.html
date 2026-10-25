@@ -440,7 +440,7 @@ async function poll(){
   const l=(S.vu>>8)&255,r=S.vu&255, bars=$$('#vu i'), lv=[l*.7,l,(l+r)/2,r,r*.7];
   bars.forEach((b,i)=>b.style.height=(S.playing?Math.max(4,lv[i]/127*40):4)+'px');
   $$('#pList .st').forEach(e=>e.classList.toggle('cur',+e.dataset.i==S.st));
-  if(tab=='ctl'&&S.ir_seq) $('#irLast').textContent=S.ir;
+  if(tab=='ctl'&&(S.ir_seq||S.ir_bad)) $('#irLast').textContent=(S.ir_seq?S.ir:'—')+' · prejetih '+S.ir_seq+', zavrženih '+(S.ir_bad||0);
 }
 function renderList(){
   $('#pList').innerHTML=ST.map((s,i)=>`<div class="st" data-i="${i}" onclick="cmd('play=${i}')"><span class="n">${String(i+1).padStart(2,'0')}</span><span class="t">${esc(s.n)}</span>${s.f?'<span class="s">★</span>':''}</div>`).join('')||'<p class="muted">Ni postaj – dodaj jih v zavihku Postaje.</p>';
