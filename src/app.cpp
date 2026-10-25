@@ -17,6 +17,9 @@ static SemaphoreHandle_t mtx  = nullptr;
 static Preferences       rt;
 static uint32_t volUntil = 0, browseUntil = 0, lastActivity = 0, saveAt = 0, menuUntil = 0;
 static bool     menuCfgDirty = false;
+static uint32_t cfgSaveAt = 0;           // zakasnjeno shranjevanje nastavitev (EQ z daljinca)
+static int      digitNum = 0, digitCnt = 0;
+static uint32_t digitUntil = 0;           // vnos številke postaje z daljinca
 static bool     started = false;
 
 struct AppCmd { AppCmdType t; int arg; };
@@ -155,6 +158,28 @@ void appMenuItem(int i, String& label, String& value) {
     }
 }
 
+static void sleepCycle() {
+    int cur = 0;
+    if (ui.sleepAt) { uint32_t left = (ui.sleepAt - millis()) / 60000; for (int k = 1; k < 5; k++) if (left < SLEEP_MIN[k]) { cur = k; break; } }
+    int nx = (cur + 1) % 5;
+    ui.sleepAt = SLEEP_MIN[nx] ? millis() + SLEEP_MIN[nx] * 60000UL : 0;
+    diagEvent(ui.sleepAt ? "Časovnik izklopa: %u min" : "Časovnik izklopa izklopljen", SLEEP_MIN[nx]);
+}
+static int eqCycle() {
+    int e = (eqIndex() + 1) % EQN;
+    cfg.eq_low = EQP[e].l; cfg.eq_mid = EQP[e].m; cfg.eq_high = EQP[e].h;
+    playerTone(cfg.eq_low, cfg.eq_mid, cfg.eq_high);
+    return e;
+}
+static void digitShow() {
+    char b[32]; snprintf(b, sizeof(b), "Postaja %d_", digitNum); displayToast(b);
+}
+static void digitCommit() {
+    int n = digitNum; digitNum = digitCnt = 0; digitUntil = 0;
+    if (n >= 1 && n <= (int)stations.size()) playIndex(n - 1);
+    else { char b[32]; snprintf(b, sizeof(b), "Ni postaje %d", n); displayToast(b); }
+}
+
 static void menuOpen()  { ui.menuSel = 0; ui.screen = SCR_MENU; menuUntil = millis() + 15000; }
 static void menuClose() {
     ui.screen = SCR_MAIN;
@@ -163,19 +188,8 @@ static void menuClose() {
 static void menuActivate() {
     menuUntil = millis() + 15000;
     switch (ui.menuSel) {
-        case MI_SLEEP: {
-            int cur = 0;
-            if (ui.sleepAt) { uint32_t left = (ui.sleepAt - millis()) / 60000; for (int k = 1; k < 5; k++) if (left < SLEEP_MIN[k]) { cur = k; break; } }
-            int nx = (cur + 1) % 5;
-            ui.sleepAt = SLEEP_MIN[nx] ? millis() + SLEEP_MIN[nx] * 60000UL : 0;
-            diagEvent(ui.sleepAt ? "Časovnik izklopa: %u min" : "Časovnik izklopa izklopljen", SLEEP_MIN[nx]);
-            break;
-        }
-        case MI_EQ: {
-            int e = (eqIndex() + 1) % EQN;
-            cfg.eq_low = EQP[e].l; cfg.eq_mid = EQP[e].m; cfg.eq_high = EQP[e].h;
-            playerTone(cfg.eq_low, cfg.eq_mid, cfg.eq_high); menuCfgDirty = true; break;
-        }
+        case MI_SLEEP: sleepCycle(); break;
+        case MI_EQ: eqCycle(); menuCfgDirty = true; break;
         case MI_VIZ:    cfg.viz = VIZ_ID[(vizIndex() + 1) % 5]; menuCfgDirty = true; break;
         case MI_LAYOUT: cfg.layout = (cfg.layout + 1) % 12; menuCfgDirty = true; break;
         case MI_THEME:  cfg.theme = (cfg.theme + 1) % tftThemeCount(); menuCfgDirty = true; break;
@@ -193,7 +207,17 @@ static void menuActivate() {
 
 static void doAction(Action a, bool rpt) {
     activity();
-    if (ui.standby && a != ACT_POWER && a != ACT_PLAY_STOP && a != ACT_OK) return;
+    bool digit = a >= ACT_D0 && a <= ACT_D9;
+    if (ui.standby && (digit || a == ACT_CH_PREV || a == ACT_CH_NEXT)) setStandby(false);
+    else if (ui.standby && a != ACT_POWER && a != ACT_PLAY_STOP && a != ACT_OK && a != ACT_MENU) return;
+    if (digit) {
+        if (rpt) return;
+        digitNum = digitNum * 10 + (a - ACT_D0); digitCnt++;
+        digitUntil = millis() + 1500;
+        if (digitCnt >= 3 || digitNum * 10 > (int)stations.size()) digitCommit();   // več številk ne more biti
+        else digitShow();
+        return;
+    }
     switch (a) {
         case ACT_VOL_UP:   changeVol(+1); break;
         case ACT_VOL_DOWN: changeVol(-1); break;
@@ -212,6 +236,28 @@ static void doAction(Action a, bool rpt) {
             displayToast(ui.favOnly ? "Samo priljubljene" : "Vse postaje");
             markDirty(); break;
         case ACT_BROWSE:   enterBrowse(0); break;
+        case ACT_MENU:     if (ui.standby) setStandby(false); else if (!rpt) menuOpen(); break;
+        case ACT_CH_PREV:
+        case ACT_CH_NEXT: {
+            int d = a == ACT_CH_NEXT ? 1 : -1;
+            if (ui.screen == SCR_BROWSE) enterBrowse(d);
+            else if (!rpt) playIndex(stepStation(ui.cur, d));
+            break;
+        }
+        case ACT_EQ: {
+            if (rpt) break;
+            int e = eqCycle();
+            char b[40]; snprintf(b, sizeof(b), "Izenačevalnik: %s", EQP[e].name); displayToast(b);
+            cfgSaveAt = millis() + 5000; break;
+        }
+        case ACT_SLEEP: {
+            if (rpt) break;
+            sleepCycle();
+            char b[40];
+            if (ui.sleepAt) snprintf(b, sizeof(b), "Izklop čez %lu min", (unsigned long)((ui.sleepAt - millis() + 59999) / 60000));
+            else snprintf(b, sizeof(b), "Časovnik izklopa izklopljen");
+            displayToast(b); break;
+        }
         case ACT_OK:
             if (ui.standby) setStandby(false);
             else if (ui.screen == SCR_BROWSE) playIndex(ui.browse);
@@ -232,6 +278,11 @@ static void handleInput(const InputEvent& e) {
             menuUntil = millis() + 15000;
         } else if (e.type == IN_ENC_CLICK) menuActivate();
         else if (e.type == IN_ENC_LONG) menuClose();
+        else if ((e.type == IN_BTN || e.type == IN_IR) && (e.val == ACT_CH_PREV || e.val == ACT_CH_NEXT)) {
+            ui.menuSel = constrain(ui.menuSel + (e.val == ACT_CH_NEXT ? 1 : -1), 0, MI_COUNT - 1);
+            menuUntil = millis() + 15000;
+        }
+        else if ((e.type == IN_BTN || e.type == IN_IR) && (e.val == ACT_MENU || e.val == ACT_OK)) { if (!e.rpt) menuActivate(); }
         else if (e.type == IN_BTN || e.type == IN_IR) { menuClose(); doAction((Action)e.val, e.rpt); }
         return;
     }
@@ -352,6 +403,8 @@ void appLoop() {
     if (ui.sleepAt && !ui.standby && (int32_t)(now - ui.sleepAt) >= 0) { diagEvent("Časovnik izklopa potekel"); setStandby(true); }
     if (ui.screen == SCR_MAIN && cfg.saver_min && !ui.standby &&
         now - lastActivity > (uint32_t)cfg.saver_min * 60000UL) ui.screen = SCR_SAVER;
+    if (digitUntil && now > digitUntil) digitCommit();
+    if (cfgSaveAt && now > cfgSaveAt) { cfgSaveAt = 0; saveConfig(cfg); diagEvent("Nastavitve shranjene (daljinec)"); }
     updateNight();
     displayUpdate(false);      // pod zaklepom: splet lahko med tem menja seznam postaj
     appUnlock();

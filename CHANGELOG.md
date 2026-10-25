@@ -7,6 +7,10 @@ Delovni dnevnik razvoja: kaj je bilo narejeno, katere težave so se pojavile in 
   na enoto RMT: strojno merjenje impulzov (1 µs), filter motenj < 3 µs, širše tolerance, lastno opravilo.
   Prej je en sam zgrešen ali moten rob zavrgel cel ukaz in vse njegove ponovitve.
 - Upravljanje: ob zadnji kodi števec prejetih in zavrženih okvirjev (motnje / drug protokol)
+- Nove akcije za daljinec in tipke: meni (odpri/potrdi), kanal −/+ (v meniju gor/dol, sicer postaja), izenačevalnik,
+  časovnik izklopa, številke 0–9 (neposredna izbira postaje, npr. 1, 2 → postaja 12; potrditev po 1,5 s)
+- Gumb »Naloži kode za daljinec Car mp3«: vseh 21 tipk naenkrat
+  (CH meni, CH−/CH+ gor/dol, PREV/NEXT postaja, PLAY, VOL−/+, EQ, 100+ časovnik, 200+ samo priljubljene, 0–9)
 
 **0.7.2**
 - Panel: zamenjava teme/postavitve je trajala ~10 s (tudi na zaslonu). Popravki: predogled in stanje se ne pošiljata

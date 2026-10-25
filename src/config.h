@@ -18,6 +18,12 @@ enum Action : uint8_t {
     ACT_FAV_TOGGLE,
     ACT_BROWSE,
     ACT_OK,
+    ACT_MENU,          // meni: odpri / potrdi
+    ACT_CH_PREV,       // v meniju gor, sicer prejšnja postaja
+    ACT_CH_NEXT,       // v meniju dol, sicer naslednja postaja
+    ACT_EQ,            // naslednja prednastavitev izenačevalnika
+    ACT_SLEEP,         // časovnik izklopa: 15/30/60/90/izklop
+    ACT_D0, ACT_D1, ACT_D2, ACT_D3, ACT_D4, ACT_D5, ACT_D6, ACT_D7, ACT_D8, ACT_D9,   // številka postaje
     ACT_COUNT
 };
 extern const char* const ACTION_IDS[ACT_COUNT];   // "vol_up", ...

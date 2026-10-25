@@ -6,7 +6,9 @@ Config cfg;
 
 const char* const ACTION_IDS[ACT_COUNT] = {
     "none", "vol_up", "vol_down", "next", "prev", "play_stop",
-    "mute", "power", "fav", "browse", "ok"
+    "mute", "power", "fav", "browse", "ok",
+    "menu", "ch_prev", "ch_next", "eq", "sleep",
+    "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9"
 };
 
 Action actionFromId(const char* id) {

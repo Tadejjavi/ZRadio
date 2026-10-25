@@ -315,7 +315,8 @@ pre.log{background:#0f1115;border:1px solid var(--line);border-radius:8px;paddin
   <h2>IR daljinec (NEC)</h2>
   <div class="card">
     <div class="row"><span class="muted">Zadnja prejeta koda:</span><span class="ir-last" id="irLast">—</span></div>
-    <p class="muted">Pritisni tipko na daljincu, nato klikni »Nauči« ob želeni funkciji.</p>
+    <p class="muted">Pritisni tipko na daljincu, nato klikni »Nauči« ob želeni funkciji. Številke izberejo postajo po zaporedni številki (npr. 1, 2 → postaja 12).</p>
+    <p><button class="b" onclick="irPreset()">Naloži kode za daljinec »Car mp3« (21 tipk)</button></p>
     <table id="irTable"></table>
   </div>
   <h2>Predvajanje</h2>
@@ -591,7 +592,7 @@ const J1=['3V3','3V3','RST',4,5,6,7,15,16,17,18,8,3,46,9,10,11,12,13,14,'5V','GN
 const J3=['GND','TX',' RX',1,2,42,41,40,39,38,37,36,35,0,45,48,47,21,20,19,'GND','GND'];
 const ORDER=[4,5,6,7,15,16,17,18,8,9,10,11,12,13,14,1,2,42,41,40,39,47,21,38,48];
 const GRP={audio:['Zvok (PCM5102)','#f2a33a','I2S'],amp:['Ojačevalnik','#e2725b','AMP'],disp:['Zaslon','#5aa9ef','ZAS'],enc1:['Enkoder 1','#4fc27d','E1'],enc2:['Enkoder 2','#b48cf2','E2'],ir:['IR','#ef5a9a','IR'],btn:['Tipke','#cfcf5a','T']};
-const ACTS=[['none','—'],['vol_up','Glasneje'],['vol_down','Tišje'],['next','Naslednja postaja'],['prev','Prejšnja postaja'],['play_stop','Predvajaj / ustavi'],['mute','Utišaj'],['power','Vklop / izklop'],['fav','Samo priljubljene'],['browse','Seznam postaj'],['ok','Potrdi']];
+const ACTS=[['none','—'],['vol_up','Glasneje'],['vol_down','Tišje'],['next','Naslednja postaja'],['prev','Prejšnja postaja'],['play_stop','Predvajaj / ustavi'],['mute','Utišaj'],['power','Vklop / izklop'],['fav','Samo priljubljene'],['browse','Seznam postaj'],['ok','Potrdi'],['menu','Meni / potrdi v meniju'],['ch_prev','Kanal − (v meniju gor)'],['ch_next','Kanal + (v meniju dol)'],['eq','Izenačevalnik (naslednji)'],['sleep','Časovnik izklopa'],['d0','Številka 0'],['d1','Številka 1'],['d2','Številka 2'],['d3','Številka 3'],['d4','Številka 4'],['d5','Številka 5'],['d6','Številka 6'],['d7','Številka 7'],['d8','Številka 8'],['d9','Številka 9']];
 let LOCK=new Set(JSON.parse(localStorage.getItem('zr_locks')||'[]'));
 const saveLocks=()=>localStorage.setItem('zr_locks',JSON.stringify([...LOCK]));
 const gp=(path)=>path.split('.').reduce((o,k)=>o?.[k],C);
@@ -714,6 +715,15 @@ function btnAct(i,v){const b=C.input.buttons[i];b.action=v;if(v!='none'&&b.pin<0
 function renderIr(){
   const c=C.input.ir_codes||{};
   $('#irTable').innerHTML=ACTS.slice(1).map(([k,l])=>`<tr><td>${l}</td><td class="mono" style="color:var(--dim)">${c[k]||'—'}</td><td style="text-align:right;white-space:nowrap"><button class="b" onclick="irLearn('${k}')">Nauči</button> <button class="i" onclick="irLearn('${k}',1)">✕</button></td></tr>`).join('');
+}
+// daljinec "Car mp3": NEC, naslov 0x00; koda = naslov | ~naslov<<8 | ukaz<<16 | ~ukaz<<24
+const CARMP3={menu:0x46,ch_prev:0x45,ch_next:0x47,prev:0x44,next:0x40,play_stop:0x43,vol_down:0x07,vol_up:0x15,eq:0x09,
+  sleep:0x19,fav:0x0D,d0:0x16,d1:0x0C,d2:0x18,d3:0x5E,d4:0x08,d5:0x1C,d6:0x5A,d7:0x42,d8:0x52,d9:0x4A};
+async function irPreset(){
+  if(!confirm('Nastavim vse tipke za daljinec Car mp3? Obstoječe naučene kode bodo zamenjane.'))return;
+  const c={};for(const[k,v]of Object.entries(CARMP3))c[k]='0x'+((((~v)&0xFF)<<24|v<<16|0xFF00)>>>0).toString(16).toUpperCase().padStart(8,'0');
+  try{const r=await post('/api/config',{input:{ir_codes:c}});if(!r.ok)return toast((r.errors||[]).join(', '),1);
+    C.input.ir_codes=c;renderIr();toast('Kode za Car mp3 nastavljene');}catch(e){toast(e.message,1)}
 }
 async function irLearn(k,clear){
   const c=Object.assign({},C.input.ir_codes||{});

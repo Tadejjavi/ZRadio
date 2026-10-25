@@ -195,7 +195,7 @@ bool inputPoll(InputEvent& ev) {
             if (lastIrAct != ACT_NONE) { ev = {IN_IR, 0, (int16_t)lastIrAct, false}; return true; }
         } else if (irRptSeq != seenRpt) {
             seenRpt = irRptSeq;
-            if (lastIrAct == ACT_VOL_UP || lastIrAct == ACT_VOL_DOWN) {
+            if (lastIrAct == ACT_VOL_UP || lastIrAct == ACT_VOL_DOWN || lastIrAct == ACT_CH_PREV || lastIrAct == ACT_CH_NEXT) {
                 ev = {IN_IR, 0, (int16_t)lastIrAct, true}; return true;
             }
         }
