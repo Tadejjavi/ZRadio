@@ -11,6 +11,7 @@ Delovni dnevnik razvoja: kaj je bilo narejeno, katere težave so se pojavile in 
   časovnik izklopa, številke 0–9 (neposredna izbira postaje, npr. 1, 2 → postaja 12; potrditev po 1,5 s)
 - Gumb »Naloži kode za daljinec Car mp3«: vseh 21 tipk naenkrat
   (CH meni, CH−/CH+ gor/dol, PREV/NEXT postaja, PLAY, VOL−/+, EQ, 100+ časovnik, 200+ samo priljubljene, 0–9)
+- V seznamu postaj CH ali PLAY potrdi izbrano postajo
 
 **0.7.2**
 - Panel: zamenjava teme/postavitve je trajala ~10 s (tudi na zaslonu). Popravki: predogled in stanje se ne pošiljata

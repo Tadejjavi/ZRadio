@@ -228,6 +228,7 @@ static void doAction(Action a, bool rpt) {
         case ACT_POWER:    setStandby(!ui.standby); break;
         case ACT_PLAY_STOP:
             if (ui.standby) setStandby(false);
+            else if (ui.screen == SCR_BROWSE) playIndex(ui.browse);
             else if (playerStatus().wanted) { playerStop(); ampSet(false); }
             else playIndex(ui.cur);
             break;
@@ -236,7 +237,12 @@ static void doAction(Action a, bool rpt) {
             displayToast(ui.favOnly ? "Samo priljubljene" : "Vse postaje");
             markDirty(); break;
         case ACT_BROWSE:   enterBrowse(0); break;
-        case ACT_MENU:     if (ui.standby) setStandby(false); else if (!rpt) menuOpen(); break;
+        case ACT_MENU:
+            if (ui.standby) setStandby(false);
+            else if (rpt) break;
+            else if (ui.screen == SCR_BROWSE) playIndex(ui.browse);     // v seznamu postaj: potrdi izbiro
+            else menuOpen();
+            break;
         case ACT_CH_PREV:
         case ACT_CH_NEXT: {
             int d = a == ACT_CH_NEXT ? 1 : -1;
