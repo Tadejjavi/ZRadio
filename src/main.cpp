@@ -74,6 +74,7 @@ void setup() {
         uint32_t t0 = millis();
         while (millis() - t0 < 20000 && WiFi.status() != WL_CONNECTED) { appLoop(); delay(20); }
         connected = WiFi.status() == WL_CONNECTED;
+        WiFi.setTxPower((wifi_power_t)cfg.wifi_tx);
     }
 
     if (!connected) {

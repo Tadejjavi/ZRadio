@@ -1,3 +1,4 @@
+#include <WiFi.h>
 #include "flashguard.h"
 #include "app.h"
 #include "stations.h"
@@ -334,6 +335,7 @@ static void handleCmd(const AppCmd& c) {
             playerMono(cfg.mono);
             if (ui.vol > cfg.vol_limit) { ui.vol = cfg.vol_limit; playerVolume(ui.vol); }
             configTzTime(cfg.tz.c_str(), cfg.ntp.c_str());
+            if (WiFi.getMode() == WIFI_STA) WiFi.setTxPower((wifi_power_t)cfg.wifi_tx);
             displayApplyConfig();
             break;
         case AC_INPUT: {                       // virtualni enkoder iz panela

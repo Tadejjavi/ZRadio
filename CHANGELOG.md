@@ -2,6 +2,10 @@
 
 Delovni dnevnik razvoja: kaj je bilo narejeno, katere težave so se pojavile in kako so bile rešene.
 
+**0.7.4**
+- Omrežje: nastavitev oddajne moči WiFi (19,5 … 5 dBm, uveljavi se takoj) – za iskanje prasketanja v zvočnikih
+  ob pretoku (tokovni sunki / sevanje WiFi v ojačevalnik)
+
 **0.7.3**
 - IR daljinec je deloval nezanesljivo (večkrat pritisniti). Dekoder NEC je prestavljen s prekinitve na padajoče robove
   na enoto RMT: strojno merjenje impulzov (1 µs), filter motenj < 3 µs, širše tolerance, lastno opravilo.

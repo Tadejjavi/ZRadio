@@ -340,6 +340,7 @@ pre.log{background:#0f1115;border:1px solid var(--line);border-radius:8px;paddin
       <option value="EET-2EEST,M3.5.0/3,M10.5.0/4">Vzhodna Evropa</option>
       <option value="UTC0">UTC</option></select></label>
     <label class="f">NTP strežnik<input id="ntp"></label>
+    <label class="f">Oddajna moč WiFi (manj = manj motenj v zvoku)<select id="wtx"><option value="78">19,5 dBm (največ)</option><option value="68">17 dBm</option><option value="60">15 dBm</option><option value="52">13 dBm</option><option value="44">11 dBm</option><option value="34">8,5 dBm</option><option value="28">7 dBm</option><option value="20">5 dBm</option></select></label>
   </div>
   <div class="row"><button class="b" onclick="scan()">Poišči omrežja</button><button class="b p" onclick="netSave()">Shrani</button></div>
   <p class="muted">Če se radio ne more povezati, po 20 s ustvari dostopno točko <b>ZRadio-xxxx</b> (geslo <span class="mono">zradio1234</span>) na naslovu 192.168.4.1.</p>
@@ -704,7 +705,7 @@ function fillForms(){
   $('#e1s').value=i.enc1.steps;$('#e1i').checked=i.enc1.invert;$('#e2s').value=i.enc2.steps;$('#e2i').checked=i.enc2.invert;
   $('#vLim').value=a.vol_limit;$('#aPlay').checked=a.autoplay;$('#mono').checked=a.mono;
   ['L','M','H'].forEach((k,j)=>{const v=[a.eq_low,a.eq_mid,a.eq_high][j];$('#eq'+k).value=v;$('#eq'+k+'v').textContent=v+' dB'});
-  $('#ssid').value=n.ssid;$('#pass').value=n.pass;$('#host').value=n.hostname;$('#ntp').value=n.ntp;
+  $('#ssid').value=n.ssid;$('#pass').value=n.pass;$('#host').value=n.hostname;$('#ntp').value=n.ntp;$('#wtx').value=n.wifi_tx||78;
   if(![...$('#tz').options].some(o=>o.value==n.tz))$('#tz').add(new Option(n.tz,n.tz));$('#tz').value=n.tz;
   renderBtns(); renderIr(); renderLook();
 }
@@ -739,7 +740,7 @@ async function saveCfg(body,msg){
 const dispSave=()=>saveCfg({display:{contrast:+$('#cD').value,contrast_night:+$('#cN').value,night_from:+$('#nF').value,night_to:+$('#nT').value,saver_min:+$('#sav').value,refresh_min:+$('#rfr').value,spi_mhz:+$('#spim').value,rot180:$('#rot').checked,standby_clock:$('#sbc').checked}});
 const ctlSave=()=>saveCfg({audio:{vol_limit:+$('#vLim').value,autoplay:$('#aPlay').checked,mono:$('#mono').checked},
   input:{enc1:{steps:+$('#e1s').value,invert:$('#e1i').checked},enc2:{steps:+$('#e2s').value,invert:$('#e2i').checked},buttons:C.input.buttons}});
-const netSave=()=>saveCfg({net:{ssid:$('#ssid').value,pass:$('#pass').value,hostname:$('#host').value.replace(/[^a-zA-Z0-9-]/g,''),tz:$('#tz').value,ntp:$('#ntp').value}});
+const netSave=()=>saveCfg({net:{ssid:$('#ssid').value,pass:$('#pass').value,hostname:$('#host').value.replace(/[^a-zA-Z0-9-]/g,''),tz:$('#tz').value,ntp:$('#ntp').value,wifi_tx:+$('#wtx').value}});
 async function scan(){toast('Iščem omrežja…');for(let i=0;i<15;i++){const r=await api('/api/wifi/scan');if(r.nets){
   $('#ssidList').innerHTML=r.nets.sort((a,b)=>b.rssi-a.rssi).map(n=>`<option value="${esc(n.ssid)}">${n.rssi} dBm</option>`).join('');toast('Najdenih omrežij: '+r.nets.length+' – klikni v polje WiFi');return}
   await new Promise(r=>setTimeout(r,1000))}toast('Iskanje ni uspelo',1)}

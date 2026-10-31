@@ -53,6 +53,7 @@ struct Config {
     String pass;
     String tz  = "CET-1CEST,M3.5.0,M10.5.0/3";   // Europe/Ljubljana
     String ntp = "pool.ntp.org";
+    uint8_t wifi_tx = 78;        // oddajna moč WiFi v 0,25 dBm (78 = 19,5 dBm, največ)
 
     // --- zvok ---
     int8_t i2s_bck = 21, i2s_lck = 15, i2s_din = 47;

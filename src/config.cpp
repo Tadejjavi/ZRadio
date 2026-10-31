@@ -44,7 +44,7 @@ void Config::toJson(JsonObject o, bool withSecrets) const {
     JsonObject n = o["net"].to<JsonObject>();
     n["hostname"] = hostname; n["ssid"] = ssid;
     n["pass"] = withSecrets ? pass : (pass.length() ? String("********") : String(""));
-    n["tz"] = tz; n["ntp"] = ntp;
+    n["tz"] = tz; n["ntp"] = ntp; n["wifi_tx"] = wifi_tx;
 
     JsonObject a = o["audio"].to<JsonObject>();
     a["bck"] = i2s_bck; a["lck"] = i2s_lck; a["din"] = i2s_din;
@@ -89,6 +89,7 @@ void Config::fromJson(JsonObjectConst o) {
         if (p && strcmp(p, "********") != 0) pass = p;   // maskirano geslo = ne spreminjaj
         tz  = n["tz"]  | tz.c_str();
         ntp = n["ntp"] | ntp.c_str();
+        wifi_tx = constrain((int)(n["wifi_tx"] | (int)wifi_tx), 8, 78);
     }
     JsonObjectConst a = o["audio"];
     if (!a.isNull()) {
