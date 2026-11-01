@@ -1556,6 +1556,9 @@ void tftUpdate(bool force, const char* toast) {
     if (cfg.refresh_min && now - lastRefresh > (uint32_t)cfg.refresh_min * 60000UL) {
         lastRefresh = now;
         diagCount(DC_OLED_REINIT);
+        // LovyanGFX pin osvetlitve ob init() nastavi mimo upravitelja pinov (periman), zato Arduino core 3
+        // ponovni ledcAttach zavrne ("already attached") in osvetlitev ostane ugasnjena -> pin najprej sprosti
+        if (cfg.bl >= 0) ledcDetach(cfg.bl);
         tft->init(); tft->setRotation(cfg.rot180 ? 3 : 1);
         sumsValid = false; curBright = 0; force = true;
     }

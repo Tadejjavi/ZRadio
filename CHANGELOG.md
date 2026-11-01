@@ -2,6 +2,11 @@
 
 Delovni dnevnik razvoja: kaj je bilo narejeno, katere težave so se pojavile in kako so bile rešene.
 
+**0.7.5**
+- Popravek: ob periodični ponovni inicializaciji zaslona (»Ponovno inicializiraj zaslon vsakih … min«) je osvetlitev
+  ugasnila do ponovnega zagona. LovyanGFX ob init() pin osvetlitve nastavi mimo upravitelja pinov Arduino core 3,
+  zato je bil ponovni `ledcAttach` zavrnjen; pin se zdaj pred ponovno inicializacijo sprosti z `ledcDetach`
+
 **0.7.4**
 - Omrežje: nastavitev oddajne moči WiFi (19,5 … 5 dBm, uveljavi se takoj) – za iskanje prasketanja v zvočnikih
   ob pretoku (tokovni sunki / sevanje WiFi v ojačevalnik)
