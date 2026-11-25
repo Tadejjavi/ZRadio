@@ -31,3 +31,5 @@ void playerMono(bool m);
 PlayerStatus playerStatus();
 uint32_t playerTitleSeq();                     // poveča se ob vsaki spremembi naslova
 uint32_t playerDecoderStackFree();             // rezerva sklada opravila knjižnice (dekoder), bajti
+
+bool playerRecoveryRestart();             // obnova zahteva ponovni zagon (app shrani stanje in zažene znova)

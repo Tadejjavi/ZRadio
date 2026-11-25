@@ -2,6 +2,17 @@
 #include "config.h"
 #include <Audio.h>
 #include "diag.h"
+#include <WiFi.h>
+
+// ---------------------------------------------------------------------------
+// Samodejna obnova: neodziven strežnik postaje je lahko radio "zastrupil", da do ponovnega zagona ni
+// delovala nobena postaja (2026-11-25, Radio Aktual). Če zastaja ali se ne poveže več različnih postaj
+// v kratkem času: 1) ponovna povezava WiFi, 2) ponovni zagon (največ 2x, nato le še poskusi).
+// Mrtva posamezna postaja sama ne sproži ničesar razen daljših presledkov med poskusi.
+// ---------------------------------------------------------------------------
+RTC_NOINIT_ATTR static uint32_t rcMagic, rcRestarts;
+static volatile bool rcWantRestart = false;
+bool playerRecoveryRestart() { return rcWantRestart; }
 
 enum PCmd : uint8_t { P_PLAY, P_STOP, P_VOL, P_MUTE, P_TONE, P_MONO };
 struct PMsg {
@@ -104,6 +115,33 @@ static void audioTask(void*) {
     uint32_t nextTry = 0, backoff = 2000;
     uint32_t lastStat = 0;
     uint32_t emptySince = 0;          // čuvaj: tok "teče", a podatkov ni
+    uint32_t connectAt = 0;           // kdaj je bila vzpostavljena trenutna povezava
+    uint32_t stallBackoff = 500;      // zastoji iste postaje: vse daljši presledki
+    // obnova
+    uint32_t failWin = 0, healthySince = 0, graceUntil = 0;
+    uint8_t  failCount = 0, stage = 0;
+    bool     multiUrl = false;
+    String   firstFailUrl;
+    auto onFailure = [&](const char* kind) {
+        uint32_t now = millis();
+        if (now < graceUntil || WiFi.status() != WL_CONNECTED) return;      // med obnovo WiFi ne štej
+        if (!failCount || now - failWin > 180000) { failWin = now; failCount = 0; multiUrl = false; firstFailUrl = wantUrl; }
+        failCount++;
+        if (wantUrl != firstFailUrl) multiUrl = true;
+        if (!multiUrl || failCount < 3) return;
+        failCount = 0;
+        if (stage == 0) {
+            diagEvent("Obnova: %s na več postajah – ponovna povezava WiFi", kind);
+            stage = 1; graceUntil = now + 20000;
+            WiFi.disconnect(false); WiFi.reconnect();
+        } else if (rcRestarts < 2) {
+            diagEvent("Obnova: težave se nadaljujejo – ponovni zagon (%lu/2)", (unsigned long)(rcRestarts + 1));
+            rcRestarts++; rcWantRestart = true;
+        } else if (stage == 1) {
+            diagEvent("Obnova: že 2 ponovna zagona brez uspeha – samo še poskusi povezave");
+            stage = 2;
+        }
+    };
     uint8_t  curVol = 0;
     bool     muted = false;           // utišanje prek glasnosti
     // mehki prehodi: knjižnica ima FADE_K-krat finejšo lestvico glasnosti
@@ -124,7 +162,7 @@ static void audioTask(void*) {
                     wantUrl = m.url; free(m.url);
                     diagEvent("Predvajam %s", wantUrl.c_str());
                     announcePending = true; lastRate = 0; playAt = millis();
-                    want = true; backoff = 2000; nextTry = 0;
+                    want = true; backoff = 2000; nextTry = 0; stallBackoff = 500;
                     fadeOut(250);
                     audio->stopSong();
                     setLevel(0);                                  // nova postaja se začne tiho in se dvigne
@@ -146,11 +184,15 @@ static void audioTask(void*) {
 
         if (want && !audio->isRunning() && millis() >= nextTry) {
             lock(); st.connecting = true; unlock();
+            uint32_t t0 = millis();
             bool ok = audio->connecttohost(wantUrl.c_str());   // blokira do povezave/napake
+            uint32_t dt = millis() - t0;
             lock(); st.connecting = false; if (!ok) st.reconnects++; unlock();
+            if (ok) { connectAt = millis(); if (dt > 1500) diagEvent("Povezovanje je trajalo %lu ms", (unsigned long)dt); }
             if (!ok) {
                 diagCount(DC_STREAM_FAIL);
-                diagEvent("Povezava na tok ni uspela, nov poskus čez %lu s", (unsigned long)(backoff / 1000));
+                diagEvent("Povezava na tok ni uspela (%lu ms), nov poskus čez %lu s", (unsigned long)dt, (unsigned long)(backoff / 1000));
+                onFailure("neuspele povezave");
                 nextTry = millis() + backoff;
                 backoff = min<uint32_t>(backoff * 2, 30000);
             } else {
@@ -200,18 +242,30 @@ static void audioTask(void*) {
                 if (!emptySince) emptySince = millis();
                 else if (millis() - emptySince > 10000) {
                     diagCount(DC_STREAM_STALL);
-                    diagEvent("Tok je zastal 10 s – ponovna povezava");
+                    diagEvent("Tok je zastal 10 s (%lu s po povezavi) – ponovna povezava čez %lu s",
+                              (unsigned long)((millis() - connectAt) / 1000), (unsigned long)(stallBackoff / 1000));
                     audio->stopSong();
-                    emptySince = 0; nextTry = millis() + 500;
+                    emptySince = 0; nextTry = millis() + stallBackoff;
+                    stallBackoff = min<uint32_t>(stallBackoff < 2000 ? 2000 : stallBackoff * 2, 30000);
+                    onFailure("zastoji");
                     lock(); st.reconnects++; st.lastError = "Tok je zastal"; unlock();
                 }
             } else emptySince = 0;
+            // zdrav tok 60 s -> obnova se ponastavi
+            if (want && run && sz && audio->inBufferFilled() > sz / 4) {
+                if (!healthySince) healthySince = millis();
+                else if (millis() - healthySince > 60000) {
+                    failCount = 0; stage = 0; stallBackoff = 500;
+                    if (millis() - healthySince > 600000) rcRestarts = 0;
+                }
+            } else healthySince = 0;
         }
         vTaskDelay(1);
     }
 }
 
 bool playerBegin(int bck, int lck, int din) {
+    if (rcMagic != 0x5A52434FUL) { rcMagic = 0x5A52434FUL; rcRestarts = 0; }
     mtx = xSemaphoreCreateMutex();
     q   = xQueueCreate(16, sizeof(PMsg));
     aq  = xQueueCreate(24, sizeof(AMsg));

@@ -398,6 +398,10 @@ void appStart() {
 }
 
 void appLoop() {
+    if (playerRecoveryRestart()) {          // samodejna obnova predvajalnika
+        FlashGuard g("stanje"); rt.putInt("st", ui.cur); rt.putUChar("vol", ui.vol); rt.putBool("fav", ui.favOnly);
+        delay(300); ESP.restart();
+    }
     InputEvent e;
     AppCmd c;
     appLock();

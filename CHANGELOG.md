@@ -2,6 +2,14 @@
 
 Delovni dnevnik razvoja: kaj je bilo narejeno, katere težave so se pojavile in kako so bile rešene.
 
+**0.7.7**
+- Samodejna obnova predvajalnika: neodziven strežnik postaje (Radio Aktual, star naslov 195.95.158.131:9080) je
+  radio »zastrupil« – do ponovnega zagona ni delovala nobena postaja. Če zastaja ali se ne poveže več različnih
+  postaj v 3 min (3 napake): najprej ponovna povezava WiFi, ob nadaljnjih napakah ponovni zagon z isto postajo
+  (največ 2x, števec se ponastavi po 10 min zdravega predvajanja). Ena sama mrtva postaja obnove ne sproži.
+- Zastoji iste postaje: presledek do ponovne povezave se veča (0,5 → 2 → 4 … 30 s) namesto stalnih 0,5 s
+- Dnevnik: trajanje povezovanja (če > 1,5 s ali ob napaki), čas od povezave do zastoja
+
 **0.7.6**
 - Periodična ponovna inicializacija je mehka: le ponovno pošlje nastavitve krmilniku (brez strojne ponastavitve,
   brisanja in brez osvetlitve) – zaslon ne utripne več
